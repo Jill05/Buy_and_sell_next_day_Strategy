@@ -7,7 +7,6 @@ This project implements a **short-term trading strategy** on the NIFTY index bas
 
 The strategy is enhanced using:
 - Price-based signals (momentum / mean reversion)
-- Optional **news sentiment analysis**
 
 ---
 
@@ -23,14 +22,9 @@ The strategy is enhanced using:
 - Sell next day
 - Assumption: Trend continues for short horizon
 
-### 3. Sentiment-Based (Optional)
-- Use financial news sentiment
-- Buy on positive sentiment spikes
-- Sell next day
-
 ---
 🛠️ Tech Stack
 Python
 Pandas, NumPy
 Matplotlib / Seaborn
-News APIs (for sentiment analysis)
+
