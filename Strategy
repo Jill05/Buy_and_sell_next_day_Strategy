@@ -1,0 +1,145 @@
+#import the required libiray
+import yfinance as yf
+import datetime as dt
+import matplotlib.pyplot as plt
+import os
+import pandas as pd
+import numpy as np
+
+import warnings
+warnings.filterwarnings('ignore')
+
+
+ticker = 'HDFCBANK.NS'
+start_date = '2023-01-01'
+end_date = '2025-03-31'
+
+data = yf.download(ticker, start_date, end_date, multi_level_index=False)
+
+
+print(type(data))
+
+
+#Inspecting data
+print("\nFirst few rows:")
+print(data.head())
+print("\nLast few rows:")
+print(data.tail())
+print("\nCount of row:")
+print(data['Close'].count())
+print(type(data))
+
+
+
+def buy_and_sell_next_day(data):
+    """
+    Strategy: Buy on the open after 3 consecutive down closes.
+    Exit (sell) on the next day's open.
+    """
+    print(type(data))
+    if not isinstance(data, pd.DataFrame):
+        raise TypeError("Input 'data' must be a pandas DataFrame")
+        
+    data = data.copy()  # Avoid modifying original data
+    
+    # Calculate daily returns (for strategy return calculation)
+    data['daily_return'] = data['Close'].pct_change()
+    
+    # Create signal column (1 = buy/hold from today's open to tomorrow's open)
+    data['signal'] = 0.0
+    
+    n = len(data)
+    
+    for i in range(3, n):
+        # Check for 3 consecutive down closes
+        if (data['Close'].iloc[i]   < data['Close'].iloc[i-1] and
+            data['Close'].iloc[i-1] < data['Close'].iloc[i-2] and
+            data['Close'].iloc[i-2] < data['Close'].iloc[i-3]):
+            
+            data.loc[data.index[i], 'signal'] = 1.0   # Signal on day i → buy at open of day i+1
+            
+            
+    # Strategy returns: we enter at next open, so multiply today's return by yesterday's signal
+    # (This approximates buying at open and selling at next open)
+    data['strategy_returns'] = data['daily_return'] * data['signal'].shift(1)
+    
+    # Optional: Add position column for clarity
+    data['position'] = data['signal'].shift(1)   # 1 means we are holding during this day
+    
+    print("Strategy applied successfully!")
+    
+    return data
+
+    # Run the strategy 
+    data = buy_and_sell_next_day(data)
+
+    initial_capital =100000
+
+    # Strategy Equity Curve
+data['strategy_equity'] = initial_capital * (1 + data['strategy_returns']).cumprod()
+
+# Buy & Hold Equity Curve
+data['buy_hold_returns'] = data['daily_return']
+data['buy_hold_equity'] = initial_capital * (1 + data['buy_hold_returns']).cumprod()
+# Drop NaN rows for clean calculation
+strategy_rets = data['strategy_returns'].dropna()
+bh_rets = data['buy_hold_returns'].dropna()
+
+# Number of trading days in a year (use 252 for stocks)
+trading_days = 252
+
+# --- Strategy Metrics ---
+total_return_strategy = data['strategy_equity'].iloc[-1] / initial_capital - 1
+cagr_strategy = (data['strategy_equity'].iloc[-1] / initial_capital) ** (trading_days / len(strategy_rets)) - 1
+
+# Sharpe Ratio (assuming risk_free_rate = 0 by default)
+sharpe_strategy = strategy_rets.mean() / strategy_rets.std() * np.sqrt(trading_days) if strategy_rets.std() != 0 else 0
+
+# Max Drawdown
+strategy_peak = data['strategy_equity'].cummax()
+strategy_drawdown = (data['strategy_equity'] - strategy_peak) / strategy_peak
+max_drawdown_strategy = strategy_drawdown.min()
+
+# --- Buy & Hold Metrics ---
+total_return_bh = data['buy_hold_equity'].iloc[-1] / initial_capital - 1
+cagr_bh = (data['buy_hold_equity'].iloc[-1] / initial_capital) ** (trading_days / len(bh_rets)) - 1
+sharpe_bh = bh_rets.mean() / bh_rets.std() * np.sqrt(trading_days) if bh_rets.std() != 0 else 0
+
+bh_peak = data['buy_hold_equity'].cummax()
+bh_drawdown = (data['buy_hold_equity'] - bh_peak) / bh_peak
+max_drawdown_bh = bh_drawdown.min()
+
+# ====================== PRINT RESULTS ======================
+print("="*60)
+print("STRATEGY PERFORMANCE SUMMARY")
+print("="*60)
+print(f"Initial Capital          : ₹{initial_capital:,.0f}")
+print(f"Final Strategy Value     : ₹{data['strategy_equity'].iloc[-1]:,.2f}")
+print(f"Final Buy & Hold Value   : ₹{data['buy_hold_equity'].iloc[-1]:,.2f}")
+print("-"*60)
+print(f"Strategy Total Return    : {total_return_strategy:.2%}")
+print(f"Buy & Hold Total Return  : {total_return_bh:.2%}")
+print(f"Strategy CAGR            : {cagr_strategy:.2%}")
+print(f"Buy & Hold CAGR          : {cagr_bh:.2%}")
+print(f"Strategy Sharpe Ratio    : {sharpe_strategy:.3f}")
+print(f"Buy & Hold Sharpe Ratio  : {sharpe_bh:.3f}")
+print(f"Strategy Max Drawdown    : {max_drawdown_strategy:.2%}")
+print(f"Buy & Hold Max Drawdown  : {max_drawdown_bh:.2%}")
+print("="*60)
+
+
+
+Buy_Hold_Sheet = pd.DataFrame({
+            'Date' : data.index,
+            'Close' : data['Close'],
+            'daily_return' : data['daily_return'],
+            'signal' : data['signal'],
+            'position' : data['position'],
+            'buy_hold_equity' : data['buy_hold_equity'],
+            'buy_hold_returns' : data['buy_hold_returns']
+            })  
+
+
+Buy_Hold_Sheet.to_csv('C:/Users/gaura/Main_Project_EPAT/Buy_Hold_Sheet.csv')
+print('\n File saved successfully') 
+
