@@ -1,4 +1,4 @@
-# 📊 NIFTY Short-Term Trading Strategy (T+1)
+# 📊 Short-Term Trading Strategy (T+1)
 
 ## 🚀 Overview
 This project implements a **short-term trading strategy** on the NIFTY index based on a simple idea:
@@ -29,5 +29,8 @@ The strategy is enhanced using:
 - Sell next day
 
 ---
-
-## 📂 Project Structure
+🛠️ Tech Stack
+Python
+Pandas, NumPy
+Matplotlib / Seaborn
+News APIs (for sentiment analysis)
